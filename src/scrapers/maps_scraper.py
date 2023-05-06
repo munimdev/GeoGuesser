@@ -69,20 +69,24 @@ else:
 # Download images and metadata
 num_images = 100
 
-while counter < num_images:
-    grid_row = random.randint(0, grid_size - 1)
-    grid_col = random.randint(0, grid_size - 1)
+def scraper():
+    '''
+    Downloads images and metadata for a given number of locations.
+    '''
+    while counter < num_images:
+        grid_row = random.randint(0, grid_size - 1)
+        grid_col = random.randint(0, grid_size - 1)
 
-    lat = lat_min + grid_row * lat_step + random.uniform(0, lat_step)
-    lng = lng_min + grid_col * lng_step + random.uniform(0, lng_step)
-    metadata = get_image_and_metadata(lat, lng, counter + 1)
+        lat = lat_min + grid_row * lat_step + random.uniform(0, lat_step)
+        lng = lng_min + grid_col * lng_step + random.uniform(0, lng_step)
+        metadata = get_image_and_metadata(lat, lng, counter + 1)
 
-    if metadata is not None:
-        metadata_json['metadata'].append(metadata)
-        counter += 1
-        print(f'Saved image and metadata for location: {lat}, {lng}')
+        if metadata is not None:
+            metadata_json['metadata'].append(metadata)
+            counter += 1
+            print(f'Saved image and metadata for location: {lat}, {lng}')
 
-        # Save the metadata to a single JSON file
-        metadata_json['counter'] = counter
-        with open(metadata_file, 'w') as f:
-            json.dump(metadata_json, f)
+            # Save the metadata to a single JSON file
+            metadata_json['counter'] = counter
+            with open(metadata_file, 'w') as f:
+                json.dump(metadata_json, f)
