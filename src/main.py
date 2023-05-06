@@ -2,6 +2,7 @@ from preprocessor.data_splitter import split_data
 from preprocessor.image_preprocessor import preprocess_images
 from models.cnn_geoguesser import create_cnn_geoguesser
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+# from keras.callbacks import EarlyStopping, ModelCheckpoint
 
 metadata_file = './data/scraped_images/metadata.json'
 data_dir = './data/scraped_images'

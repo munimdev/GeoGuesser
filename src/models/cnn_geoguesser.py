@@ -1,5 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras import layers, models
+# from keras import layers, models
 
 def create_cnn_geoguesser(input_shape=(224, 224, 3)):
 

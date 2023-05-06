@@ -9,6 +9,9 @@ def update_metadata_and_filenames():
     Searches for missing files and
     updates the metadata JSON file and 
     the filenames of the images in the scraped_images folder.
+
+    e.g. 1.png, 2.png, 4.png -> 1.png, 2.png, 3.png
+    in the case that 3.png was deleted/missing.
     '''
     # Load the metadata JSON file
     with open(metadata_file, 'r') as f:
