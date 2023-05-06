@@ -1,50 +1,84 @@
 import os
-import time
+import random
 import requests
-from flickrapi import FlickrAPI
+import json
+from dotenv import load_dotenv
+import google_streetview.api
 
-# Replace with your own Flickr API key and secret
-API_KEY = '995cefbf4866d62060072226c1d47147'
-API_SECRET = 'fa036c20086fac72'
+# Load the .env file
+load_dotenv()
 
-# Set your download folder path
-DOWNLOAD_FOLDER = 'geotagged_images'
+# Read the API key from the .env file
+apiKey = os.getenv('GOOGLE_API')
 
-# Create the download folder if it doesn't exist
-if not os.path.exists(DOWNLOAD_FOLDER):
-    os.makedirs(DOWNLOAD_FOLDER)
+# Get the coordinates of Islamabad using the Geocoding API
+geocoding_api_url = f'https://maps.googleapis.com/maps/api/geocode/json?address=Islamabad,+Pakistan&key={apiKey}'
+response = requests.get(geocoding_api_url)
+geocoding_data = response.json()
+bounds = geocoding_data['results'][0]['geometry']['bounds']
 
-# Initialize the Flickr API
-flickr = FlickrAPI(API_KEY, API_SECRET, format='parsed-json')
+# Define the bounding box for Islamabad
+lat_min = bounds['southwest']['lat']
+lat_max = bounds['northeast']['lat']
+lng_min = bounds['southwest']['lng']
+lng_max = bounds['northeast']['lng']
 
-def download_image(url, filename):
-    response = requests.get(url, stream=True)
-    with open(filename, 'wb') as f:
-        for chunk in response.iter_content(chunk_size=8192):
-            f.write(chunk)
+# Divide the bounding box into a grid
+grid_size = 10
+lat_step = (lat_max - lat_min) / grid_size
+lng_step = (lng_max - lng_min) / grid_size
 
-# Download images from all across Pakistan without any tags
-for page in range(1, 21):  # Download 20 pages of images
-    search_params = {
-        'bbox': '60.87,23.64,77.84,37.09',  # Bounding box for Pakistan
-        'has_geo': 1,
-        'extras': 'geo,url_o',
-        'per_page': 100,
-        'page': page
-    }
+def get_image_and_metadata(lat, lng, identifier):
+    params = [{
+        'size': '640x640',  # max 640x640 pixels
+        'location': f'{lat},{lng}',
+        'heading': '180',
+        'pitch': '0',
+        'key': apiKey}]
 
-    response = flickr.photos.search(**search_params)
-    photos = response['photos']['photo']
+    # Check if a valid image exists at the location
+    metadata_api_url = f'https://maps.googleapis.com/maps/api/streetview/metadata?size=640x640&location={lat},{lng}&heading=180&pitch=0&key={apiKey}&return_error_code=true'
+    metadata_response = requests.get(metadata_api_url)
+    metadata = metadata_response.json()
 
-    for photo in photos:
-        if 'url_o' in photo:
-            url = photo['url_o']
-            filename = os.path.join(DOWNLOAD_FOLDER, f"{photo['id']}.jpg")
-            download_image(url, filename)
+    if metadata['status'] == 'OK':
+        # Save the image
+        results = google_streetview.api.results(params)
+        image_url = results.links[0]
+        image_data = requests.get(image_url).content
+        os.makedirs('./scraped_images', exist_ok=True)
+        with open(f'./scraped_images/{identifier}.png', 'wb') as f:
+            f.write(image_data)
 
-            # Store geolocation data (e.g., in a dictionary or save to a file)
-            latitude = photo['latitude']
-            longitude = photo['longitude']
-            print(f"Downloaded {filename}, Latitude: {latitude}, Longitude: {longitude}")
+        # Save the metadata
+        metadata['filename'] = f'{identifier}.png'
+        return metadata
+    else:
+        return None
 
-    time.sleep(5)  # Add a delay between requests to avoid overwhelming the API
+# Read the highest counter value from the metadata file
+metadata_file = './scraped_images/metadata.json'
+if os.path.isfile(metadata_file):
+    with open(metadata_file, 'r') as f:
+        metadata_json = json.load(f)
+        counter = metadata_json['counter']
+else:
+    counter = 0
+    metadata_json = {'counter': 0, 'metadata': []}
+
+# Download images and metadata
+num_images = 100
+
+while counter < num_images:
+    grid_row = random.randint(0, grid_size - 1)
+    grid_col = random.randint(0, grid_size - 1)
+
+    lat = lat_min + grid_row * lat_step + random.uniform(0, lat_step)
+    lng = lng_min + grid_col * lng_step + random.uniform(0, lng_step)
+    metadata = get_image_and_metadata(lat, lng, counter + 1)
+
+    if metadata is not None:
+        metadata_json['metadata'].append(metadata)
+        counter += 1
+        print(f'Saved image and metadata for location: {lat}, {lng}')
+
