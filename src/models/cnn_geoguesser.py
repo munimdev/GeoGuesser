@@ -7,7 +7,7 @@ from sklearn.model_selection import ParameterSampler
 from utils.geocoding import haversine_distance
 
 def create_geoguesser_model(output_shape):
-    base_model = ResNet50(weights='imagenet', include_top=False, input_shape=(output_shape[0], output_shape[1], 3))
+    base_model = ResNet50(weights='imagenet', include_top=False, input_shape=(output_shape[1], output_shape[0], 3))
     
     for layer in base_model.layers:
         layer.trainable = False
@@ -27,7 +27,7 @@ def train_geoguesser_model(model, train_images, train_locations, val_images, val
     model.fit(train_images, train_locations, validation_data=(val_images, val_locations), batch_size=8, epochs=epochs)
 
 def tune_geoguesser_model(train_images, train_locations, val_images, val_locations, output_shape):
-    base_model = ResNet50(weights='imagenet', include_top=False, input_shape=(output_shape[0], output_shape[1], 3))
+    base_model = ResNet50(weights='imagenet', include_top=False, input_shape=(output_shape[1], output_shape[0], 3))
 
     # Freeze the layers of the base model
     for layer in base_model.layers:
@@ -50,6 +50,7 @@ def tune_geoguesser_model(train_images, train_locations, val_images, val_locatio
         'hidden_layers': [5],
         'hidden_units': [1024],
     }
+
     param_combinations = ParameterSampler(param_grid, n_iter=10)
     
     best_val_loss = float('inf')
