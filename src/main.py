@@ -30,18 +30,18 @@ test_images, test_locations = preprocess_images(test_dir, os.path.join(test_dir,
 model = create_geoguesser_model(output_shape)
 
 # Tune and train the model
-tuned_model = tune_geoguesser_model(model, train_images, train_locations, val_images, val_locations)
+tuned_model = tune_geoguesser_model(train_images, train_locations, val_images, val_locations, output_shape)
 
 # Evaluate the model on the test set
 test_loss, test_accuracy = tuned_model.evaluate(test_images, test_locations)
 print(f'Test Loss: {test_loss}, Test Accuracy: {test_accuracy}')
 
 # Get the model's predictions
-predicted_locations = model.predict(test_images)
+predicted_locations = tuned_model.predict(test_images)
 
 # Calculate distances between actual and predicted coordinates
-distances = haversine_distance(test_locations[:, 0], test_locations[:, 1],
-                               predicted_locations[:, 0], predicted_locations[:, 1])
+print(test_locations, predicted_locations)
+distances = haversine_distance(test_locations, predicted_locations)
 
 # Calculate mean and median distance errors
 mean_distance_error = np.mean(distances)

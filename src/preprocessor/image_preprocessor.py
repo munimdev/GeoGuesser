@@ -18,7 +18,7 @@ def preprocess_images(data_dir: str, metadata_file: str, output_shape: Tuple[int
         # Load and preprocess image
         filename = item['filename']
         image = cv2.imread(os.path.join(data_dir, filename))
-        image = cv2.resize(image, output_shape)
+        image = cv2.resize(image, (output_shape[1], output_shape[0]))  # Swap width and height
         image = image.astype(np.float32) / 255.0
 
         # Store preprocessed image and location data
