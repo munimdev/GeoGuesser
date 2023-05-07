@@ -17,7 +17,7 @@ def preprocess_images(data_dir: str, metadata_file: str, output_shape: Tuple[int
     for i, item in enumerate(metadata):
         # Load and preprocess image
         filename = item['filename']
-        image = cv2.imread(os.path.join(data_dir, 'images', filename))
+        image = cv2.imread(os.path.join(data_dir, filename))
         image = cv2.resize(image, output_shape)
         image = image.astype(np.float32) / 255.0
 

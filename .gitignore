@@ -3,6 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Tensorflow model
+*.pb
+*.h5
+
 # C extensions
 *.so
 
@@ -151,6 +155,11 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+# Training, testing, and validation data
+data/test/
+data/train/
+data/val/
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
