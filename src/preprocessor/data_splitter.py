@@ -5,6 +5,9 @@ import shutil
 from typing import Tuple
 
 def clear_directory(directory: str):
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
     for filename in os.listdir(directory):
         file_path = os.path.join(directory, filename)
         if os.path.isfile(file_path) or os.path.islink(file_path):
