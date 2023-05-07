@@ -7,6 +7,13 @@ __pycache__/
 *.pb
 *.h5
 
+# Training, testing, and validation data
+data/test/
+data/train/
+data/val/
+data/old_scraped_images/
+data/old_scraped_images/*.png
+
 # C extensions
 *.so
 
@@ -155,12 +162,6 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
-
-# Training, testing, and validation data
-data/test/
-data/train/
-data/val/
-data/old_scraped_images/
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
