@@ -160,6 +160,7 @@ cython_debug/
 data/test/
 data/train/
 data/val/
+data/old_scraped_images/
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can

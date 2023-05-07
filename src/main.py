@@ -1,9 +1,10 @@
 import os
+import numpy as np
 from scrapers.maps_scraper import scraper
 from utils.geocoding import haversine_distance, calculate_accuracy
 from preprocessor.data_splitter import split_data
 from preprocessor.image_preprocessor import preprocess_images
-from models.cnn_geoguesser import create_geoguesser_model, train_geoguesser_model
+from models.cnn_geoguesser import create_geoguesser_model, train_geoguesser_model, tune_geoguesser_model
 from tensorflow.keras.applications.resnet import preprocess_input
 
 # Scrape images and metadata
@@ -20,7 +21,7 @@ test_dir = 'data/test'
 train_samples, val_samples, test_samples = split_data(metadata_file, data_dir, train_dir, val_dir, test_dir)
 
 # Preprocess images and location data
-output_shape = (224, 224)
+output_shape = (600, 300)
 train_images, train_locations = preprocess_images(train_dir, os.path.join(train_dir, 'metadata.json'), output_shape)
 val_images, val_locations = preprocess_images(val_dir, os.path.join(val_dir, 'metadata.json'), output_shape)
 test_images, test_locations = preprocess_images(test_dir, os.path.join(test_dir, 'metadata.json'), output_shape)
@@ -28,11 +29,11 @@ test_images, test_locations = preprocess_images(test_dir, os.path.join(test_dir,
 # Create the geoguesser model
 model = create_geoguesser_model(output_shape)
 
-# Train the model
-train_geoguesser_model(model, train_images, train_locations, val_images, val_locations)
+# Tune and train the model
+tuned_model = tune_geoguesser_model(model, train_images, train_locations, val_images, val_locations)
 
 # Evaluate the model on the test set
-test_loss, test_accuracy = model.evaluate(test_images, test_locations)
+test_loss, test_accuracy = tuned_model.evaluate(test_images, test_locations)
 print(f'Test Loss: {test_loss}, Test Accuracy: {test_accuracy}')
 
 # Get the model's predictions
