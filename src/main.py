@@ -8,7 +8,7 @@ from models.cnn_geoguesser import create_geoguesser_model, train_geoguesser_mode
 from tensorflow.keras.applications.resnet import preprocess_input
 
 # Scrape images and metadata
-total_images = 300
+total_images = 930
 keep_current_images = True
 scraper(total_images, keep_current_images)
 
@@ -40,8 +40,12 @@ print(f'Test Loss: {test_loss}, Test Accuracy: {test_accuracy}')
 predicted_locations = tuned_model.predict(test_images)
 
 # Calculate distances between actual and predicted coordinates
-print(test_locations, predicted_locations)
-distances = haversine_distance(test_locations, predicted_locations)
+# print(test_locations, predicted_locations)
+distances=[]
+for index, _ in enumerate(test_locations):
+  print(f"Test: {test_locations[index]}, Prediction: {predicted_locations[index]}")
+  distances.append(haversine_distance(test_locations[index], predicted_locations[index]))
+
 
 # Calculate mean and median distance errors
 mean_distance_error = np.mean(distances)
@@ -49,6 +53,12 @@ median_distance_error = np.median(distances)
 print(f'Mean Distance Error: {mean_distance_error} km, Median Distance Error: {median_distance_error} km')
 
 # After training the model
-predictions = model.predict(test_images)
+predictions = tuned_model.predict(test_images)
 test_accuracy = calculate_accuracy(predictions, test_locations)
 print(f'Test Accuracy: {test_accuracy}')
+
+# Save the model
+model_save_path = 'saved_models'
+os.makedirs(model_save_path, exist_ok=True)
+model_file_name = f'geoguesser_model_{test_accuracy}'
+tuned_model.save(os.path.join(model_save_path, model_file_name))
