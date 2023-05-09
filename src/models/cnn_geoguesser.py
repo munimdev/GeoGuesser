@@ -6,36 +6,33 @@ from tensorflow.keras.optimizers import Adam, RMSprop, Adagrad, Nadam
 from sklearn.model_selection import ParameterSampler
 from utils.geocoding import haversine_distance
 
-def create_classifier(base_model, grid_size):
+def create_geoguesser_model(output_shape, num_grid_cells):
+    base_model = ResNet50(weights='imagenet', include_top=False, input_shape=(output_shape[1], output_shape[0], 3))
+    
+    for layer in base_model.layers:
+        layer.trainable = False
+
     x = base_model.output
     x = layers.GlobalAveragePooling2D()(x)
-    classifier = layers.Dense(grid_size * grid_size, activation='softmax', name='grid_classifier')(x)
-    return Model(inputs=base_model.input, outputs=classifier)
+    x = layers.Dense(256, activation='relu')(x)
+    x = layers.Dropout(0.5)(x)
+    predictions = layers.Dense(num_grid_cells, activation='softmax')(x)
 
-def create_regressor(base_model, params):
-    x = base_model.output
-    x = layers.GlobalAveragePooling2D()(x)
+    model = Model(inputs=base_model.input, outputs=predictions)
+    model.compile(optimizer=Adam(learning_rate=0.001), loss=haversine_distance, metrics=['mean_absolute_error'])
 
-    for _ in range(params['hidden_layers']):
-        x = layers.Dense(params['hidden_units'], activation='relu', kernel_initializer=params['init'])(x)
-        x = layers.Dropout(params['dropout_rate'])(x)
+    return model
 
-    predictions = layers.Dense(2, activation='linear', name='location_regressor')(x)
-    return Model(inputs=base_model.input, outputs=predictions)
+def train_geoguesser_model(model, train_images, train_grid_labels, val_images, val_grid_labels, epochs=50):
+    model.fit(train_images, train_grid_labels, validation_data=(val_images, val_grid_labels), batch_size=32, epochs=epochs)
 
-def train_geoguesser_model(model, train_images, train_locations, val_images, val_locations, epochs=50):
-    train_labels = {'grid': train_locations[:, 2], 'lat_lng': train_locations[:, :2]}
-    val_labels = {'grid': val_locations[:, 2], 'lat_lng': val_locations[:, :2]}
-    model.fit(train_images, train_labels, validation_data=(val_images, val_labels), batch_size=32, epochs=epochs)
-
-
-def tune_geoguesser_model(train_images, train_locations, val_images, val_locations, output_shape, grid_size):
+def tune_geoguesser_model(train_images, train_grid_labels, val_images, val_grid_labels, output_shape):
     base_model = ResNet50(weights='imagenet', include_top=False, input_shape=(output_shape[1], output_shape[0], 3))
 
     # Freeze the layers of the base model
-    # for layer in base_model.layers:
-    #     layer.trainable = False
-
+    for layer in base_model.layers:
+        layer.trainable = False
+    
     param_grid = {
         'dropout_rate': [0.1],
         'init': ['glorot_normal'],
@@ -50,47 +47,45 @@ def tune_geoguesser_model(train_images, train_locations, val_images, val_locatio
     best_val_loss = float('inf')
     best_model = None
 
-    # Create and train grid classifier
-    grid_classifier = create_classifier(base_model, grid_size)
-    grid_labels = np.argmax(np.reshape(train_locations[:, 2], (-1, 1)), axis=1)
-    grid_classifier.compile(optimizer=Adam(learning_rate=0.001), loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-    grid_classifier.fit(train_images, grid_labels, validation_split=0.2, batch_size=32, epochs=50)
-
-    # Create and train location regressor
     for params in param_combinations:
         print(f"Training models with params: {params}")
-        location_regressor = create_regressor(base_model, params)
-        location_regressor.compile(optimizer=params['optimizer'](learning_rate=0.001), loss=haversine_distance, metrics=['mean_absolute_error'])
-        train_geoguesser_model(location_regressor, train_images, train_locations[:, :2], val_images, val_locations[:, :2])
-
-        val_loss, _ = location_regressor.evaluate(val_images, val_locations[:, :2])
+        tuned_model = create_tuned_geoguesser_model(base_model, params)
+        train_geoguesser_model(tuned_model, train_images, train_grid_labels, val_images, val_grid_labels)
+        
+        val_loss, _ = tuned_model.evaluate(val_images, val_locations)
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            best_model = location_regressor
-        return best_model, grid_classifier
+            best_model = tuned_model
 
-def create_tuned_geoguesser_model(base_model, params, num_grid_cells):
+    return best_model
+
+def create_tuned_geoguesser_model(base_model, params):
     # Unfreeze layers
     for layer in base_model.layers[-params['unfreeze_layers']:]:
         layer.trainable = True
 
     x = base_model.output
     x = layers.GlobalAveragePooling2D()(x)
-
-    # Add hidden layers for grid classification
+    
+    # Add hidden layers
     for _ in range(params['hidden_layers']):
         x = layers.Dense(params['hidden_units'], activation='relu', kernel_initializer=params['init'])(x)
         x = layers.Dropout(params['dropout_rate'])(x)
 
-    # Grid classification
-    grid_predictions = layers.Dense(num_grid_cells, activation='softmax', name='grid')(x)
+    predictions = layers.Dense(2, activation='linear')(x)
 
-    # Regression for latitude and longitude
-    lat_lng_predictions = layers.Dense(2, activation='linear', name='lat_lng')(x)
+    model = Model(inputs=base_model.input, outputs=predictions)
+    model.compile(optimizer=params['optimizer'](learning_rate=0.001), loss=haversine_distance, metrics=['mean_absolute_error'])
 
-    model = Model(inputs=base_model.input, outputs=[grid_predictions, lat_lng_predictions])
-    model.compile(optimizer=params['optimizer'](learning_rate=0.001),
-                  loss={'grid': 'sparse_categorical_crossentropy', 'lat_lng': haversine_distance},
-                  metrics={'grid': 'accuracy', 'lat_lng': 'mean_absolute_error'})
+    return model
 
+def create_regression_model(input_shape):
+    model = tf.keras.Sequential([
+        layers.Input(shape=input_shape),
+        layers.Dense(64, activation='relu'),
+        layers.Dense(32, activation='relu'),
+        layers.Dense(2, activation='linear')
+    ])
+
+    model.compile(optimizer=Adam(learning_rate=0.001), loss=haversine_distance, metrics=['mean_absolute_error'])
     return model
