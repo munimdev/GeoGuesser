@@ -23,10 +23,10 @@ def create_geoguesser_model(output_shape, num_grid_cells):
 
     return model
 
-def train_geoguesser_model(model, train_images, train_grid_labels, val_images, val_grid_labels, epochs=50):
-    model.fit(train_images, train_grid_labels, validation_data=(val_images, val_grid_labels), batch_size=32, epochs=epochs)
+def train_geoguesser_model(model, train_images, train_grid_labels, val_images, val_grid_labels, batch_size=8, epochs=50):
+    model.fit(train_images, train_grid_labels, validation_data=(val_images, val_grid_labels), batch_size=batch_size, epochs=epochs)
 
-def tune_geoguesser_model(train_images, train_grid_labels, val_images, val_grid_labels, output_shape):
+def tune_geoguesser_model(train_images, train_grid_labels, val_images, val_grid_labels, output_shape, epochs=50):
     base_model = ResNet50(weights='imagenet', include_top=False, input_shape=(output_shape[1], output_shape[0], 3))
 
     # Freeze the layers of the base model
@@ -34,11 +34,11 @@ def tune_geoguesser_model(train_images, train_grid_labels, val_images, val_grid_
         layer.trainable = False
     
     param_grid = {
-        'dropout_rate': [0.1],
+        'dropout_rate': [0.3],
         'init': ['glorot_normal'],
         'optimizer': [Adam],
         'unfreeze_layers': [5],
-        'hidden_layers': [1],
+        'hidden_layers': [3],
         'hidden_units': [128],
     }
 
@@ -50,9 +50,9 @@ def tune_geoguesser_model(train_images, train_grid_labels, val_images, val_grid_
     for params in param_combinations:
         print(f"Training models with params: {params}")
         tuned_model = create_tuned_geoguesser_model(base_model, params)
-        train_geoguesser_model(tuned_model, train_images, train_grid_labels, val_images, val_grid_labels)
+        train_geoguesser_model(tuned_model, train_images, train_grid_labels, val_images, val_grid_labels, epochs)
         
-        val_loss, _ = tuned_model.evaluate(val_images, val_locations)
+        val_loss, _ = tuned_model.evaluate(val_images, val_grid_labels)
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             best_model = tuned_model

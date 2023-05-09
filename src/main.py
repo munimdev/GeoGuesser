@@ -8,6 +8,10 @@ from preprocessor.grid_preprocessor import one_hot_encode_grid_labels
 from postprocessor.grid_postprocessor import grid_predictions_to_coordinates
 from models.cnn_geoguesser import create_geoguesser_model, create_regression_model, train_geoguesser_model
 
+# Constants
+epochs = 50
+batch_size = 8
+
 # Scrape images and metadata
 total_images = 300
 keep_current_images = True
@@ -37,7 +41,7 @@ val_grid_labels = one_hot_encode_grid_labels(val_grid_labels, num_grid_cells)
 classification_model = create_geoguesser_model(output_shape, num_grid_cells)
 
 # Train the classification model
-train_geoguesser_model(classification_model, train_images, train_grid_labels, val_images, val_grid_labels)
+train_geoguesser_model(classification_model, train_images, train_grid_labels, val_images, val_grid_labels, batch_size, epochs)
 
 # Get the grid predictions
 train_grid_predictions = classification_model.predict(train_images)
@@ -51,7 +55,7 @@ val_predicted_coordinates = grid_predictions_to_coordinates(val_grid_predictions
 regression_model = create_regression_model(train_predicted_coordinates.shape[1:])
 
 # Train the regression model
-train_geoguesser_model(regression_model, train_predicted_coordinates, train_locations, val_predicted_coordinates, val_locations)
+train_geoguesser_model(regression_model, train_predicted_coordinates, train_locations, val_predicted_coordinates, val_locations, batch_size, epochs)
 
 # Evaluate the model on the test set
 test_grid_predictions = classification_model.predict(test_images)
