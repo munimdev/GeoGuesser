@@ -52,6 +52,7 @@ def get_image_and_metadata(lat, lng, heading, identifier, grid_row, grid_col):
         metadata['filepath'] = f'{grid_row}_{grid_col}/{lat:.6f}_{lng:.6f}/{filename}'
         metadata['grid_row'] = grid_row
         metadata['grid_col'] = grid_col
+        metadata['grid_label'] = grid_row * grid_size + grid_col
         metadata['lat'] = lat
         metadata['lng'] = lng
         metadata['filename'] = filename
