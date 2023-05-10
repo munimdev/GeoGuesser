@@ -3,6 +3,7 @@ import os
 import cv2
 import numpy as np
 from typing import Tuple
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 def preprocess_images(data_dir: str, metadata_file: str, output_shape: Tuple[int, int], grid_size: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:    
     # Load metadata

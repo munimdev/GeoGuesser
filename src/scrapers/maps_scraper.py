@@ -43,7 +43,9 @@ def get_image_and_metadata(lat, lng, heading, identifier, grid_row, grid_col):
         image_data = requests.get(image_url).content
         
         folder_path = f'{PATH_FROM_ROOT}/{grid_row}_{grid_col}/{lat:.6f}_{lng:.6f}'
-        os.makedirs(folder_path, exist_ok=True)
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+            num_classes += 1
 
         filename = f'{heading}_{identifier}.png'
         with open(f'{folder_path}/{filename}', 'wb') as f:
@@ -71,6 +73,7 @@ if os.path.isfile(metadata_file):
     with open(metadata_file, 'r') as f:
         metadata_json = json.load(f)
         counter = metadata_json['counter']
+        num_classes = len(os.listdir(f'{PATH_FROM_ROOT}'))
 else:
     counter = 0
     metadata_json = {'counter': 0, 'metadata': []}
@@ -78,10 +81,12 @@ else:
 def scraper(total_images, keep_current_images=True):
     global counter
     global metadata_json
+    global num_classes
 
     if not keep_current_images:
         counter = 0
         metadata_json = {'counter': 0, 'metadata': []}
+        num_classes = 0
 
     headings = ['0', '90', '180']
 
@@ -103,7 +108,10 @@ def scraper(total_images, keep_current_images=True):
                 if counter >= total_images:
                     break
 
-        # Save the metadata to a single JSON file
-        metadata_json['counter'] = counter
-        with open(metadata_file, 'w') as f:
-            json.dump(metadata_json, f)
+    # Save the metadata to a single JSON file
+    metadata_json['counter'] = counter
+    metadata_json['num_classes'] = len(os.listdir(f'{PATH_FROM_ROOT}'))
+    with open(metadata_file, 'w') as f:
+        json.dump(metadata_json, f)
+
+    return metadata_json
