@@ -30,18 +30,18 @@ train_samples, val_samples, test_samples = split_data(metadata_file, data_dir, t
 # Preprocess images and location data
 output_shape = (600, 300)
 grid_size = 30
-train_images, train_locations, train_grid_labels = preprocess_images(train_dir, os.path.join(train_dir, 'metadata.json'), output_shape, grid_size)
-val_images, val_locations, val_grid_labels = preprocess_images(val_dir, os.path.join(val_dir, 'metadata.json'), output_shape, grid_size)
-test_images, test_locations, test_grid_labels = preprocess_images(test_dir, os.path.join(test_dir, 'metadata.json'), output_shape, grid_size)
+train_images, train_locations, train_grid_labels = preprocess_images(train_dir, os.path.join(train_dir, 'metadata.json'), output_shape, grid_size, num_classes)
+val_images, val_locations, val_grid_labels = preprocess_images(val_dir, os.path.join(val_dir, 'metadata.json'), output_shape, grid_size, num_classes)
+test_images, test_locations, test_grid_labels = preprocess_images(test_dir, os.path.join(test_dir, 'metadata.json'), output_shape, grid_size, num_classes)
 
 # Preprocess grid labels
 num_grid_cells = grid_size * grid_size
-train_grid_labels = one_hot_encode_grid_labels(train_grid_labels, num_grid_cells)
-val_grid_labels = one_hot_encode_grid_labels(val_grid_labels, num_grid_cells)
-test_grid_labels = one_hot_encode_grid_labels(test_grid_labels, num_grid_cells)
+# train_grid_labels = one_hot_encode_grid_labels(train_grid_labels, num_grid_cells)
+# val_grid_labels = one_hot_encode_grid_labels(val_grid_labels, num_grid_cells)
+# test_grid_labels = one_hot_encode_grid_labels(test_grid_labels, num_grid_cells)
 
 # Create the geoguesser model
-classification_model = create_geoguesser_model(output_shape, grid_size, num_grid_cells)
+classification_model = create_geoguesser_model(output_shape, grid_size, num_grid_cells, num_classes)
 
 # Train the classification model
 train_geoguesser_model(classification_model, train_images, train_grid_labels, val_images, val_grid_labels, BATCH_SIZE_FOR_CLASSIFICATION, EPOCHS_FOR_CLASSIFICATION)

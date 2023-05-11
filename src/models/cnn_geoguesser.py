@@ -7,23 +7,28 @@ from tensorflow.keras.optimizers import Adam, RMSprop, Adagrad, Nadam
 from sklearn.model_selection import ParameterSampler
 from utils.geocoding import haversine_distance, custom_grid_loss
 
-def create_geoguesser_model(output_shape, grid_size, num_grid_cells):
+def create_geoguesser_model(output_shape, grid_size, num_grid_cells, num_classes):
     base_model = ResNet50(weights='imagenet', include_top=False, input_shape=(output_shape[1], output_shape[0], 3))
     # base_model = VGG16(weights='imagenet', include_top=False, input_shape=(output_shape[1], output_shape[0], 3))
 
-    # for layer in base_model.layers[:-4]:
-    #     layer.trainable = False
-    model = tf.keras.Sequential()
-    model.add(base_model)
-    model.add(layers.GlobalAveragePooling2D())
-    model.add(layers.Dense(num_grid_cells, activation='relu'))
-    model.add(layers.Dropout(0.1))
-    model.add(layers.Dense(grid_size, activation = 'sigmoid'))
-    model.add(layers.Dense(256, activation='softmax'))
+    for layer in base_model.layers:
+        layer.trainable = False
+
+    for layer in base_model.layers[-4:]:
+        layer.trainable = True
+
+    model = tf.keras.Sequential([
+        base_model,
+        layers.GlobalAveragePooling2D(),
+        layers.Dense(1024, activation='relu'),
+        layers.Dropout(0.1),
+        layers.Dense(num_classes, activation='sigmoid'),
+        layers.Dense(num_classes, activation='softmax')
+    ])
 
     # model.compile(optimizer=Adam(learning_rate=0.001), loss=['binary_crossentropy'], metrics=['mean_absolute_error'])
     # model.compile(optimizer=Adam(learning_rate=0.001), loss=['categorical_crossentropy'], metrics=['accuracy'])
-    model.compile(optimizer=Adam(learning_rate=0.001), loss=['categorical_crossentropy'], metrics=['accuracy'])
+    model.compile(optimizer=Adam(learning_rate=0.001), loss=['kullback_leibler_divergence'], metrics=['categorical_accuracy'])
     # model.compile(optimizer=Adam(learning_rate=0.001), loss=haversine_distance, metrics=['mean_absolute_error'])
     # model.compile(optimizer=Adam(learning_rate=0.001), loss=lambda y_true, y_pred: custom_grid_loss(y_true, y_pred, math.floor(math.sqrt(num_grid_cells)), 0.1) , metrics=['accuracy'])
 
