@@ -21,11 +21,11 @@ lat_max = bounds['northeast']['lat']
 lng_min = bounds['southwest']['lng']
 lng_max = bounds['northeast']['lng']
 
-grid_size = 30
-lat_step = (lat_max - lat_min) / grid_size
-lng_step = (lng_max - lng_min) / grid_size
+# Function to create a one-hot encoding for labels
+def one_hot_encoding(n, size):
+    return [1 if i == n else 0 for i in range(size)]
 
-def get_image_and_metadata(lat, lng, heading, identifier, grid_row, grid_col):
+def get_image_and_metadata(lat, lng, heading, identifier, grid_row, grid_col, grid_size, grid_label):
     params = [{
         'size': '640x320',
         'location': f'{lat},{lng}',
@@ -45,7 +45,6 @@ def get_image_and_metadata(lat, lng, heading, identifier, grid_row, grid_col):
         folder_path = f'{PATH_FROM_ROOT}/{grid_row}_{grid_col}/{lat:.6f}_{lng:.6f}'
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
-            num_classes += 1
 
         filename = f'{heading}_{identifier}.png'
         with open(f'{folder_path}/{filename}', 'wb') as f:
@@ -54,7 +53,8 @@ def get_image_and_metadata(lat, lng, heading, identifier, grid_row, grid_col):
         metadata['filepath'] = f'{grid_row}_{grid_col}/{lat:.6f}_{lng:.6f}/{filename}'
         metadata['grid_row'] = grid_row
         metadata['grid_col'] = grid_col
-        metadata['grid_label'] = grid_row * grid_size + grid_col
+        metadata['grid_label'] = grid_label
+        metadata['one_hot_label'] = one_hot_encoding(grid_label, grid_size * grid_size)
         metadata['lat'] = lat
         metadata['lng'] = lng
         metadata['filename'] = filename
@@ -62,56 +62,83 @@ def get_image_and_metadata(lat, lng, heading, identifier, grid_row, grid_col):
         return metadata
     else:
         return None
-    
+
 import pathlib
 
 script_dir = pathlib.Path(__file__).parent.absolute()
 os.makedirs(os.path.join(script_dir, PATH_FROM_SCRAPER), exist_ok=True)
+
 metadata_file = os.path.join(script_dir, f'{PATH_FROM_SCRAPER}/metadata.json')
 
-if os.path.isfile(metadata_file):
-    with open(metadata_file, 'r') as f:
-        metadata_json = json.load(f)
-        counter = metadata_json['counter']
-        num_classes = len(os.listdir(f'{PATH_FROM_ROOT}'))
-else:
-    counter = 0
-    metadata_json = {'counter': 0, 'metadata': []}
-
-def scraper(total_images, keep_current_images=True):
+def scraper(grid_size, images_per_grid, keep_current_images=True):
     global counter
     global metadata_json
     global num_classes
+
+    if os.path.isfile(metadata_file):
+        with open(metadata_file, 'r') as f:
+            metadata_json = json.load(f)
+            counter = metadata_json['counter']
+            num_classes = len(os.listdir(f'{PATH_FROM_ROOT}'))
+            grid_label_counter = metadata_json['grid_label_counter']
+    else:
+        counter = 0
+        metadata_json = {
+            'counter': 0,
+            'metadata': [],
+            'lat_min': lat_min,
+            'lat_max': lat_max,
+            'lng_min': lng_min,
+            'lng_max': lng_max,
+            'grid_size': grid_size,
+            'grid_label_counter': {i: 0 for i in range(grid_size * grid_size)}
+        }
+        grid_label_counter = metadata_json['grid_label_counter']
 
     if not keep_current_images:
         counter = 0
         metadata_json = {'counter': 0, 'metadata': []}
         num_classes = 0
+        # clear the directory and the metadata file
+        for root, dirs, files in os.walk(f'{PATH_FROM_ROOT}', topdown=False):
+            for name in files:
+                os.remove(os.path.join(root, name))
+            for name in dirs:
+                os.rmdir(os.path.join(root, name))
+        
+        if os.path.isfile(metadata_file):
+            os.remove(metadata_file)
 
     headings = ['0', '90', '180']
+    grid_label_counter = {}
 
-    while counter < total_images:
-        grid_row = random.randint(0, grid_size - 1)
-        grid_col = random.randint(0, grid_size - 1)
+    lat_step = (lat_max - lat_min) / grid_size
+    lng_step = (lng_max - lng_min) / grid_size
 
-        lat = lat_min + grid_row * lat_step + random.uniform(0, lat_step)
-        lng = lng_min + grid_col * lng_step + random.uniform(0, lng_step)
+    for grid_row in range(grid_size):
+        for grid_col in range(grid_size):
+            grid_label = grid_row * grid_size + grid_col
+            grid_label_counter[grid_label] = 0
 
-        for heading in headings:
-            metadata = get_image_and_metadata(lat, lng, heading, counter + 1, grid_row, grid_col)
+            while grid_label_counter[grid_label] < images_per_grid:
+                lat = lat_min + grid_row * lat_step + random.uniform(0, lat_step)
+                lng = lng_min + grid_col * lng_step + random.uniform(0, lng_step)
 
-            if metadata is not None:
-                metadata_json['metadata'].append(metadata)
-                counter += 1
-                print(f'Saved image and metadata for location: {lat}, {lng}, heading: {heading}')
+                for heading in headings:
+                    metadata = get_image_and_metadata(lat, lng, heading, counter + 1, grid_row, grid_col, grid_size, grid_label)
 
-                if counter >= total_images:
-                    break
+                    if metadata is not None:
+                        metadata_json['metadata'].append(metadata)
+                        counter += 1
+                        print(f'Saved image and metadata for location: {lat}, {lng}, heading: {heading} in grid: {grid_row}, {grid_col} with label: {grid_label}')
+
+                grid_label_counter[grid_label] += 1
 
     # Save the metadata to a single JSON file
     metadata_json['counter'] = counter
     metadata_json['num_classes'] = len(os.listdir(f'{PATH_FROM_ROOT}'))
+    metadata_json['grid_label_counter'] = grid_label_counter
     with open(metadata_file, 'w') as f:
         json.dump(metadata_json, f)
 
-    return metadata_json
+    return lat_min, lat_max, lng_min, lng_max, counter, num_classes
