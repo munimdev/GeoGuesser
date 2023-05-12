@@ -4,6 +4,10 @@ import requests
 import json
 from dotenv import load_dotenv
 import google_streetview.api
+from concurrent.futures import ThreadPoolExecutor
+import threading
+import pathlib
+import time
 
 PATH_FROM_SCRAPER = "../../data/scraped_images"
 PATH_FROM_ROOT = "data/scraped_images"
@@ -11,17 +15,6 @@ PATH_FROM_ROOT = "data/scraped_images"
 load_dotenv()
 apiKey = os.getenv('GOOGLE_API')
 
-geocoding_api_url = f'https://maps.googleapis.com/maps/api/geocode/json?address=Islamabad,+Pakistan&key={apiKey}'
-response = requests.get(geocoding_api_url)
-geocoding_data = response.json()
-bounds = geocoding_data['results'][0]['geometry']['bounds']
-
-lat_min = bounds['southwest']['lat']
-lat_max = bounds['northeast']['lat']
-lng_min = bounds['southwest']['lng']
-lng_max = bounds['northeast']['lng']
-
-# Function to create a one-hot encoding for labels
 def one_hot_encoding(n, size):
     return [1 if i == n else 0 for i in range(size)]
 
@@ -63,37 +56,66 @@ def get_image_and_metadata(lat, lng, heading, identifier, grid_row, grid_col, gr
     else:
         return None
 
-import pathlib
+metadata_lock = threading.Lock()
+
+def save_metadata(metadata):
+    global metadata_json
+
+    with metadata_lock:
+        metadata_json['metadata'].append(metadata)
+        metadata_json['counter'] += 1
+        metadata_json['grid_label_counter'][metadata['grid_label']] += 1
+        with open(metadata_file, 'w') as f:
+            json.dump(metadata_json, f)
+
+def scrape_grid(grid_row, grid_col, grid_size, images_per_grid, grid_label_counter, end_time):
+    global counter
+    headings = ['0', '90', '180']
+    lat_step = (lat_max - lat_min) / grid_size
+    lng_step = (lng_max - lng_min) / grid_size
+    grid_label = grid_row * grid_size + grid_col
+
+    while grid_label_counter[grid_label] < images_per_grid and time.time() < end_time:
+        lat = lat_min + grid_row * lat_step + random.uniform(0, lat_step)
+        lng = lng_min + grid_col * lng_step + random.uniform(0, lng_step)
+
+        for heading in headings:
+            metadata = get_image_and_metadata(lat, lng, heading, counter + 1, grid_row, grid_col, grid_size, grid_label)
+
+            if metadata is not None:
+                save_metadata(metadata)
+                print(f'Saved image and metadata for location: {lat}, {lng}, heading: {heading} in grid: {grid_row}, {grid_col} with label: {grid_label}')
+
+        # Move to the next grid if images_per_grid images have been scraped
+        if grid_label_counter[grid_label] >= images_per_grid:
+            grid_label = (grid_label + 1) % (grid_size * grid_size)
+            grid_row, grid_col = divmod(grid_label, grid_size)
 
 script_dir = pathlib.Path(__file__).parent.absolute()
 os.makedirs(os.path.join(script_dir, PATH_FROM_SCRAPER), exist_ok=True)
 
 metadata_file = os.path.join(script_dir, f'{PATH_FROM_SCRAPER}/metadata.json')
 
-def scraper(grid_size, images_per_grid, keep_current_images=True):
+def scraper(grid_size, images_per_grid, keep_current_images=True, bounding_box=None, location_name=None, timeout_minutes=30):
     global counter
     global metadata_json
     global num_classes
+    global lat_min, lat_max, lng_min, lng_max
 
-    if os.path.isfile(metadata_file):
-        with open(metadata_file, 'r') as f:
-            metadata_json = json.load(f)
-            counter = metadata_json['counter']
-            num_classes = len(os.listdir(f'{PATH_FROM_ROOT}'))
-            grid_label_counter = metadata_json['grid_label_counter']
+    if bounding_box is not None:
+        lat_min, lat_max, lng_min, lng_max = bounding_box
+    elif location_name is not None:
+        geocoding_api_url = f'https://maps.googleapis.com/maps/api/geocode/json?address={location_name}&key={apiKey}'
+        response = requests.get(geocoding_api_url)
+        geocoding_data = response.json()
+        bounds = geocoding_data['results'][0]['geometry']['bounds']
+
+        lat_min = bounds['southwest']['lat']
+        lat_max = bounds['northeast']['lat']
+        lng_min = bounds['southwest']['lng']
+        lng_max = bounds['northeast']['lng']
     else:
-        counter = 0
-        metadata_json = {
-            'counter': 0,
-            'metadata': [],
-            'lat_min': lat_min,
-            'lat_max': lat_max,
-            'lng_min': lng_min,
-            'lng_max': lng_max,
-            'grid_size': grid_size,
-            'grid_label_counter': {i: 0 for i in range(grid_size * grid_size)}
-        }
-        grid_label_counter = metadata_json['grid_label_counter']
+        raise ValueError('Either bounding_box or location_name must be specified')
 
     if not keep_current_images:
         counter = 0
@@ -105,34 +127,40 @@ def scraper(grid_size, images_per_grid, keep_current_images=True):
                 os.remove(os.path.join(root, name))
             for name in dirs:
                 os.rmdir(os.path.join(root, name))
-        
+
         if os.path.isfile(metadata_file):
             os.remove(metadata_file)
 
-    headings = ['0', '90', '180']
-    grid_label_counter = {}
+    if os.path.isfile(metadata_file):
+        with open(metadata_file, 'r') as f:
+            metadata_json = json.load(f)
+            counter = metadata_json['counter']
+            num_classes = len(os.listdir(f'{PATH_FROM_ROOT}'))
+            grid_label_counter = metadata_json['grid_label_counter']
+    else:
+        counter = 0
+        grid_label_counter = {i: 0 for i in range(grid_size * grid_size)}
+        metadata_json = {
+            'counter': 0,
+            'metadata': [],
+            'lat_min': lat_min,
+            'lat_max': lat_max,
+            'lng_min': lng_min,
+            'lng_max': lng_max,
+            'grid_size': grid_size,
+            'grid_label_counter': grid_label_counter
+        }
 
-    lat_step = (lat_max - lat_min) / grid_size
-    lng_step = (lng_max - lng_min) / grid_size
+    end_time = time.time() + timeout_minutes * 60
+    with ThreadPoolExecutor(max_workers=grid_size * grid_size) as executor:
+        futures = []
+        for grid_row in range(grid_size):
+            for grid_col in range(grid_size):
+                futures.append(executor.submit(scrape_grid, grid_row, grid_col, grid_size, images_per_grid, grid_label_counter, end_time))
 
-    for grid_row in range(grid_size):
-        for grid_col in range(grid_size):
-            grid_label = grid_row * grid_size + grid_col
-            grid_label_counter[grid_label] = 0
-
-            while grid_label_counter[grid_label] < images_per_grid:
-                lat = lat_min + grid_row * lat_step + random.uniform(0, lat_step)
-                lng = lng_min + grid_col * lng_step + random.uniform(0, lng_step)
-
-                for heading in headings:
-                    metadata = get_image_and_metadata(lat, lng, heading, counter + 1, grid_row, grid_col, grid_size, grid_label)
-
-                    if metadata is not None:
-                        metadata_json['metadata'].append(metadata)
-                        counter += 1
-                        print(f'Saved image and metadata for location: {lat}, {lng}, heading: {heading} in grid: {grid_row}, {grid_col} with label: {grid_label}')
-
-                grid_label_counter[grid_label] += 1
+        # Wait for all threads to finish
+        for future in futures:
+            future.result()
 
     # Save the metadata to a single JSON file
     metadata_json['counter'] = counter
@@ -141,4 +169,4 @@ def scraper(grid_size, images_per_grid, keep_current_images=True):
     with open(metadata_file, 'w') as f:
         json.dump(metadata_json, f)
 
-    return lat_min, lat_max, lng_min, lng_max, counter, num_classes
+    return lat_min, lat_max, lng_min, lng_max, counter, num_classes, metadata_json

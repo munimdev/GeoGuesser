@@ -11,14 +11,13 @@ from models.cnn_geoguesser import create_geoguesser_model, create_regression_mod
 # Constants
 EPOCHS_FOR_REGRESSION = 100
 BATCH_SIZE_FOR_REGRESSION = 64
-EPOCHS_FOR_CLASSIFICATION = 15
-BATCH_SIZE_FOR_CLASSIFICATION = 32
+EPOCHS_FOR_CLASSIFICATION = 2
+BATCH_SIZE_FOR_CLASSIFICATION = 2
 
 # Scrape images and metadata
-grid_size = 15
-images_per_grid_cell = 5
-keep_current_images = False
-lat_min, lat_max, lng_min, lng_max, counter, num_classes = scraper(grid_size, images_per_grid_cell, keep_current_images)
+grid_size = 30
+images_per_grid_cell = 3
+lat_min, lat_max, lng_min, lng_max, counter, num_classes, metadata = scraper(grid_size, images_per_grid_cell, keep_current_images=True, location_name="London")
 
 # Split the data into train, validation, and test sets
 metadata_file = 'data/scraped_images/metadata.json'

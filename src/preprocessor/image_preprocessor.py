@@ -10,10 +10,10 @@ def preprocess_images(data_dir: str, metadata_file: str, output_shape: Tuple[int
     with open(metadata_file, 'r') as f:
         metadata = json.load(f)
 
-    num_samples = len(metadata)
+    num_samples = grid_size*grid_size
     image_data = np.zeros((num_samples, output_shape[1], output_shape[0], 3), dtype=np.float32)
     location_data = np.zeros((num_samples, 2), dtype=np.float32)
-    grid_labels = np.zeros((num_samples, num_classes), dtype=int)
+    # grid_labels = np.zeros((num_samples, ), dtype=int)
 
     for i, item in enumerate(metadata):
         # Load and preprocess image
@@ -22,7 +22,7 @@ def preprocess_images(data_dir: str, metadata_file: str, output_shape: Tuple[int
         # grid_labels[i] = f"{item['grid_row']}-{item['grid_col']}"
         row = int(item['grid_row'])
         col = int(item['grid_col'])
-        grid_labels[i] = np.eye(num_classes)[row]*row+np.eye(num_classes)[col]*col
+        # grid_labels[i] = np.eye(num_classes)[row]*row+np.eye(num_classes)[col]*col
         image = cv2.imread(os.path.join(data_dir, filename))
         image = cv2.resize(image, output_shape)
         image = image.astype(np.float32) / 255.0
@@ -30,4 +30,5 @@ def preprocess_images(data_dir: str, metadata_file: str, output_shape: Tuple[int
         image_data[i] = image
         location_data[i] = [item['location']['lat'], item['location']['lng']]
 
-    return image_data, location_data, grid_labels
+    # return image_data, location_data, grid_labels
+    return image_data, location_data
