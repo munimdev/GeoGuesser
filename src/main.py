@@ -9,15 +9,17 @@ from postprocessor.grid_postprocessor import grid_predictions_to_coordinates
 from models.cnn_geoguesser import create_geoguesser_model, create_regression_model, train_geoguesser_model
 
 # Constants
-EPOCHS_FOR_REGRESSION = 100
+EPOCHS_FOR_REGRESSION = 5
 BATCH_SIZE_FOR_REGRESSION = 64
-EPOCHS_FOR_CLASSIFICATION = 2
+EPOCHS_FOR_CLASSIFICATION = 4
 BATCH_SIZE_FOR_CLASSIFICATION = 2
+GRID_SIZE = 20
+IMAGES_PER_CELL = 3
+IMAGE_SHAPE = (640, 640)
+OUTPUT_SHAPE = (640, 640)
 
 # Scrape images and metadata
-grid_size = 30
-images_per_grid_cell = 3
-lat_min, lat_max, lng_min, lng_max, counter, num_classes, metadata = scraper(grid_size, images_per_grid_cell, keep_current_images=True, location_name="London")
+lat_min, lat_max, lng_min, lng_max, counter, num_classes = scraper(GRID_SIZE, IMAGES_PER_CELL, IMAGE_SHAPE, keep_current_images=True, location_name="London")
 
 # Split the data into train, validation, and test sets
 metadata_file = 'data/scraped_images/metadata.json'
@@ -28,19 +30,18 @@ test_dir = 'data/test'
 train_samples, val_samples, test_samples = split_data(metadata_file, data_dir, train_dir, val_dir, test_dir)
 
 # Preprocess images and location data
-output_shape = (224, 224)
-train_images, train_locations, train_grid_labels = preprocess_images(train_dir, os.path.join(train_dir, 'metadata.json'), output_shape, grid_size, num_classes)
-val_images, val_locations, val_grid_labels = preprocess_images(val_dir, os.path.join(val_dir, 'metadata.json'), output_shape, grid_size, num_classes)
-test_images, test_locations, test_grid_labels = preprocess_images(test_dir, os.path.join(test_dir, 'metadata.json'), output_shape, grid_size, num_classes)
+train_images, train_locations, train_grid_labels = preprocess_images(train_dir, os.path.join(train_dir, 'metadata.json'), OUTPUT_SHAPE, GRID_SIZE, counter)
+val_images, val_locations, val_grid_labels = preprocess_images(val_dir, os.path.join(val_dir, 'metadata.json'), OUTPUT_SHAPE, GRID_SIZE, counter)
+test_images, test_locations, test_grid_labels = preprocess_images(test_dir, os.path.join(test_dir, 'metadata.json'), OUTPUT_SHAPE, GRID_SIZE, counter)
 
 # Preprocess grid labels
-num_grid_cells = grid_size * grid_size
+num_grid_cells = GRID_SIZE * GRID_SIZE
 # train_grid_labels = one_hot_encode_grid_labels(train_grid_labels, num_grid_cells)
 # val_grid_labels = one_hot_encode_grid_labels(val_grid_labels, num_grid_cells)
 # test_grid_labels = one_hot_encode_grid_labels(test_grid_labels, num_grid_cells)
 
 # Create the geoguesser model
-classification_model = create_geoguesser_model(output_shape, grid_size, num_grid_cells, num_classes)
+classification_model = create_geoguesser_model(OUTPUT_SHAPE, GRID_SIZE, num_grid_cells, num_classes)
 
 # Train the classification model
 classification_model=train_geoguesser_model(classification_model, train_images, train_grid_labels, val_images, val_grid_labels, BATCH_SIZE_FOR_CLASSIFICATION, EPOCHS_FOR_CLASSIFICATION)
@@ -53,8 +54,8 @@ val_grid_predictions = classification_model.predict(val_images)
 print(np.array(train_grid_predictions[0]))
 
 # Convert grid predictions to coordinates
-train_predicted_coordinates = grid_predictions_to_coordinates(np.array(train_grid_predictions), lat_min, lat_max, lng_min, lng_max, grid_size)
-val_predicted_coordinates = grid_predictions_to_coordinates(np.array(val_grid_predictions), lat_min, lat_max, lng_min, lng_max, grid_size)
+train_predicted_coordinates = grid_predictions_to_coordinates(np.array(train_grid_predictions), lat_min, lat_max, lng_min, lng_max, GRID_SIZE)
+val_predicted_coordinates = grid_predictions_to_coordinates(np.array(val_grid_predictions), lat_min, lat_max, lng_min, lng_max, GRID_SIZE)
 # print(train_predicted_coordinates)
 
 # Create the regression model
@@ -65,7 +66,7 @@ regression_model=train_geoguesser_model(regression_model, train_predicted_coordi
 
 # Evaluate the model on the test set
 test_grid_predictions = classification_model.predict(test_images)
-test_predicted_coordinates = grid_predictions_to_coordinates(np.array(test_grid_predictions), lat_min, lat_max, lng_min, lng_max, grid_size)
+test_predicted_coordinates = grid_predictions_to_coordinates(np.array(test_grid_predictions), lat_min, lat_max, lng_min, lng_max, GRID_SIZE)
 test_loss, test_accuracy = regression_model.evaluate(test_predicted_coordinates, test_locations)
 print(f'Test Loss: {test_loss}, Test Accuracy: {test_accuracy}')
 

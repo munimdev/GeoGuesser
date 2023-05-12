@@ -21,7 +21,7 @@ def create_geoguesser_model(output_shape, grid_size, num_grid_cells, num_classes
         base_model,
         layers.GlobalAveragePooling2D(),
         layers.Dense(1024, activation='relu'),
-        layers.Dropout(0.01),
+        layers.Dropout(0.3),
         layers.Dense(num_classes, activation='sigmoid'),
         layers.Dense(num_classes, activation='softmax')
     ])
