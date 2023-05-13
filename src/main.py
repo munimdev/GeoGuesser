@@ -1,99 +1,48 @@
 import os
+import json
 import numpy as np
-from scrapers.maps_scraper import scraper
-from utils.geocoding import haversine_distance, calculate_accuracy
-from preprocessor.data_splitter import split_data
-from preprocessor.image_preprocessor import preprocess_images
-from preprocessor.grid_preprocessor import one_hot_encode_grid_labels
-from postprocessor.grid_postprocessor import grid_predictions_to_coordinates
-from models.cnn_geoguesser import create_geoguesser_model, create_regression_model, train_geoguesser_model
+from src.scrapers.maps_scraper import scraper
+from src.preprocessor.image_preprocessor import preprocess_images
+from src.models.cnn_geoguesser import train_geoguesser, create_grid_classifier, create_location_regressor
 
-# Constants
-EPOCHS_FOR_REGRESSION = 5
-BATCH_SIZE_FOR_REGRESSION = 64
-EPOCHS_FOR_CLASSIFICATION = 4
-BATCH_SIZE_FOR_CLASSIFICATION = 35
-GRID_SIZE = 10
-IMAGES_PER_CELL = 3
-IMAGE_SHAPE = (640, 640)
-OUTPUT_SHAPE = (240, 240)
+# Scrape images
+grid_size = 10
+images_per_grid = 3
+location_name = "London"
+bounding_box = None  # Example: {'lat_min': 33.5675, 'lat_max': 33.8242, 'lng_min': 72.8245, 'lng_max': 73.2819}
+keep_current_images = True
 
-# Scrape images and metadata
-lat_min, lat_max, lng_min, lng_max, counter, num_classes = scraper(GRID_SIZE, IMAGES_PER_CELL, IMAGE_SHAPE, keep_current_images=True, location_name="London")
+if bounding_box is not None:
+    lat_min, lat_max, lng_min, lng_max = bounding_box.values()
+    scraper(grid_size, images_per_grid, location_name, lat_min, lat_max, lng_min, lng_max, keep_current_images)
+else:
+    scraper(grid_size, images_per_grid, location_name, keep_current_images=keep_current_images)
 
-# Split the data into train, validation, and test sets
+# Preprocess images
 metadata_file = 'data/scraped_images/metadata.json'
-data_dir = 'data/scraped_images'
-train_dir = 'data/train'
-val_dir = 'data/val'
-test_dir = 'data/test'
-train_samples, val_samples, test_samples = split_data(metadata_file, data_dir, train_dir, val_dir, test_dir)
+train_generator, validation_generator, test_generator = preprocess_images(metadata_file, grid_size)
 
-# Preprocess images and location data
-train_images, train_locations, train_grid_labels = preprocess_images(train_dir, os.path.join(train_dir, 'metadata.json'), OUTPUT_SHAPE, GRID_SIZE, counter)
-val_images, val_locations, val_grid_labels = preprocess_images(val_dir, os.path.join(val_dir, 'metadata.json'), OUTPUT_SHAPE, GRID_SIZE, counter)
-test_images, test_locations, test_grid_labels = preprocess_images(test_dir, os.path.join(test_dir, 'metadata.json'), OUTPUT_SHAPE, GRID_SIZE, counter)
+# Train the models
+grid_classifier_epochs = 20
+location_regressor_epochs = 20
+grid_classifier, location_regressor = train_geoguesser(train_generator, validation_generator,
+                                                       grid_classifier_epochs, location_regressor_epochs)
 
-# Preprocess grid labels
-num_grid_cells = GRID_SIZE * GRID_SIZE
-# train_grid_labels = one_hot_encode_grid_labels(train_grid_labels, num_grid_cells)
-# val_grid_labels = one_hot_encode_grid_labels(val_grid_labels, num_grid_cells)
-# test_grid_labels = one_hot_encode_grid_labels(test_grid_labels, num_grid_cells)
+# Evaluate the models
+test_grid_predictions = grid_classifier.predict(test_generator)
+test_lat_lng_labels = np.array([entry['one_hot_label'] for entry in test_generator.labels])
 
-# Create the geoguesser model
-classification_model = create_geoguesser_model(OUTPUT_SHAPE, GRID_SIZE, num_grid_cells, num_classes)
+# Location regression evaluation
+test_location_predictions = location_regressor.predict(test_grid_predictions)
+test_location_loss, test_location_mae = location_regressor.evaluate(test_grid_predictions, test_lat_lng_labels)
 
-# Train the classification model
-classification_model=train_geoguesser_model(classification_model, train_images, train_grid_labels, val_images, val_grid_labels, BATCH_SIZE_FOR_CLASSIFICATION, EPOCHS_FOR_CLASSIFICATION)
+# Grid classification evaluation
+test_grid_labels = np.argmax(test_lat_lng_labels, axis=1)
+test_grid_accuracy = np.mean(np.argmax(test_grid_predictions, axis=1) == test_grid_labels)
 
-# Get the grid predictions
-# train_grid_predictions = [classification_model.predict(np.array([train_images[index]])) for index, _ in enumerate(train_images)]
-# val_grid_predictions = [classification_model.predict(np.array([val_images[index]])) for index, _ in enumerate(val_images)]
-train_grid_predictions = classification_model.predict(train_images)
-val_grid_predictions = classification_model.predict(val_images)
-print(np.array(train_grid_predictions[0]))
+print(f'Test grid classification accuracy: {test_grid_accuracy}')
+print(f'Test location loss: {test_location_loss}, Test location MAE: {test_location_mae}')
 
-# Convert grid predictions to coordinates
-train_predicted_coordinates = grid_predictions_to_coordinates(np.array(train_grid_predictions), lat_min, lat_max, lng_min, lng_max, GRID_SIZE)
-val_predicted_coordinates = grid_predictions_to_coordinates(np.array(val_grid_predictions), lat_min, lat_max, lng_min, lng_max, GRID_SIZE)
-# print(train_predicted_coordinates)
-
-# Create the regression model
-print(train_locations.shape)
-print(train_predicted_coordinates.shape)
-regression_model = create_regression_model(train_predicted_coordinates.shape[1:])
-
-# Train the regression model
-regression_model=train_geoguesser_model(regression_model, train_predicted_coordinates, train_locations, val_predicted_coordinates, val_locations, BATCH_SIZE_FOR_REGRESSION, EPOCHS_FOR_REGRESSION)
-
-# Evaluate the model on the test set
-test_grid_predictions = classification_model.predict(test_images)
-test_predicted_coordinates = grid_predictions_to_coordinates(np.array(test_grid_predictions), lat_min, lat_max, lng_min, lng_max, GRID_SIZE)
-test_loss, test_accuracy = regression_model.evaluate(test_predicted_coordinates, test_locations)
-print(f'Test Loss: {test_loss}, Test Accuracy: {test_accuracy}')
-
-# Get the model's predictions
-predicted_locations = []
-# predicted_locations = regression_model.predict(test_predicted_coordinates)
-for index, _ in enumerate(test_predicted_coordinates):
-    predicted_locations.append(regression_model.predict(np.array([test_predicted_coordinates[index]])))
-
-# Calculate distances between actual and predicted coordinates
-distances=[]
-for index, _ in enumerate(test_locations):
-    print(f"Test: {test_locations[index]}, Prediction: {predicted_locations[index]}")
-    distances.append(haversine_distance(test_locations[index], predicted_locations[index]))
-
-# Calculate mean and median distance errors
-mean_distance_error = np.mean(distances)
-median_distance_error = np.median(distances)
-print(f'Mean Distance Error: {mean_distance_error} km, Median Distance Error: {median_distance_error} km')
-
-# Save the models
-models_dir = 'trained_models'
-classification_model.save(os.path.join(models_dir, 'classification_model'))
-regression_model.save(os.path.join(models_dir, 'regression_model'))
-
-# Calculate accuracy
-accuracy = calculate_accuracy(predicted_locations, test_locations, 5)
-print(f'Accuracy: {accuracy}%')
+# Save models
+grid_classifier.save('models/grid_classifier.h5')
+location_regressor.save('models/location_regressor.h5')
