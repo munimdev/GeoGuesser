@@ -161,7 +161,7 @@ def scraper(grid_size, images_per_grid, image_shape, keep_current_images=True, b
             num_classes = len(os.listdir(f'{PATH_FROM_ROOT}'))-1
             # grid_image_counter = metadata_json['grid_image_counter']
             grid_image_counter = {row: {col: x for col, x in enumerate(row_dict.values())} for row, row_dict in enumerate(metadata_json['grid_image_counter'].values())}
-            print(grid_image_counter)
+            metadata_json['grid_image_counter'] = grid_image_counter
     else:
         counter = 0
         num_classes = 0

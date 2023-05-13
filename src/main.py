@@ -12,11 +12,11 @@ from models.cnn_geoguesser import create_geoguesser_model, create_regression_mod
 EPOCHS_FOR_REGRESSION = 5
 BATCH_SIZE_FOR_REGRESSION = 64
 EPOCHS_FOR_CLASSIFICATION = 4
-BATCH_SIZE_FOR_CLASSIFICATION = 2
-GRID_SIZE = 20
+BATCH_SIZE_FOR_CLASSIFICATION = 35
+GRID_SIZE = 10
 IMAGES_PER_CELL = 3
 IMAGE_SHAPE = (640, 640)
-OUTPUT_SHAPE = (640, 640)
+OUTPUT_SHAPE = (240, 240)
 
 # Scrape images and metadata
 lat_min, lat_max, lng_min, lng_max, counter, num_classes = scraper(GRID_SIZE, IMAGES_PER_CELL, IMAGE_SHAPE, keep_current_images=True, location_name="London")
@@ -59,6 +59,8 @@ val_predicted_coordinates = grid_predictions_to_coordinates(np.array(val_grid_pr
 # print(train_predicted_coordinates)
 
 # Create the regression model
+print(train_locations.shape)
+print(train_predicted_coordinates.shape)
 regression_model = create_regression_model(train_predicted_coordinates.shape[1:])
 
 # Train the regression model

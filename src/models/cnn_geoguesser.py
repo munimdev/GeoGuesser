@@ -11,11 +11,8 @@ def create_geoguesser_model(output_shape, grid_size, num_grid_cells, num_classes
     base_model = ResNet50(weights='imagenet', include_top=False, input_shape=(output_shape[1], output_shape[0], 3))
     # base_model = VGG16(weights='imagenet', include_top=False, input_shape=(output_shape[1], output_shape[0], 3))
 
-    for layer in base_model.layers:
+    for layer in base_model.layers[:143]:
         layer.trainable = False
-
-    for layer in base_model.layers[-4:]:
-        layer.trainable = True
 
     model = tf.keras.Sequential([
         base_model,
@@ -23,7 +20,7 @@ def create_geoguesser_model(output_shape, grid_size, num_grid_cells, num_classes
         layers.Dense(1024, activation='relu'),
         layers.Dropout(0.3),
         layers.Dense(num_classes, activation='sigmoid'),
-        layers.Dense(num_classes, activation='softmax')
+        layers.Dense(grid_size*grid_size, activation='softmax')
     ])
 
     # model.compile(optimizer=Adam(learning_rate=0.001), loss=['binary_crossentropy'], metrics=['mean_absolute_error'])
