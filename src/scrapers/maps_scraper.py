@@ -194,4 +194,4 @@ def scraper(grid_size, images_per_grid, image_shape, keep_current_images=True, b
     with open(metadata_file, 'w') as f:
         json.dump(metadata_json, f)
 
-    return lat_min, lat_max, lng_min, lng_max, counter, num_classes
+    return (lat_min, lat_max, lng_min, lng_max), counter, num_classes

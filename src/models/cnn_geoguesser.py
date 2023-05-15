@@ -5,8 +5,8 @@ from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Dropout
 from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras.optimizers import Adam, SGD, RMSprop
 
-def create_grid_classifier(num_classes, learning_rate=0.001):
-    base_model = ResNet50(weights='imagenet', include_top=False, input_shape=(320, 640, 3))
+def create_grid_classifier(num_classes, input_shape, learning_rate=0.001):
+    base_model = ResNet50(weights='imagenet', include_top=False, input_shape=input_shape)
     x = base_model.output
     x = GlobalAveragePooling2D()(x)
     x = Dense(1024, activation='relu')(x)
@@ -31,15 +31,18 @@ def create_location_regressor(grid_size, learning_rate=0.001):
         Dense(2, activation='linear')
     ])
 
-    model.compile(optimizer=Adam(learning_rate=learning_rate), loss='mse', metrics=['mae'])
+    # model.compile(optimizer=Adam(learning_rate=learning_rate), loss='mse', metrics=['mae'])
+    # model.compile(optimizer=Adam(learning_rate=0.001), loss=['categorical_crossentropy'], metrics=['accuracy'])
+    model.compile(optimizer=Adam(learning_rate=0.001), loss=['categorical_crossentropy'], metrics=['categorical_accuracy'])
+    # model.compile(optimizer=Adam(learning_rate=0.001), loss=['kullback_leibler_divergence'], metrics=['categorical_accuracy'])
 
     return model
 
-def train_geoguesser(train_generator, validation_generator, grid_classifier_epochs=20, location_regressor_epochs=20):
-    num_classes = train_generator.num_classes
+def train_geoguesser(train_generator, validation_generator, num_classes, input_shape, grid_classifier_epochs=20, location_regressor_epochs=20):
+    # num_classes = train_generator.num_classes
 
     # Train the grid classifier
-    grid_classifier = create_grid_classifier(num_classes)
+    grid_classifier = create_grid_classifier(num_classes, input_shape)
     grid_classifier.fit(train_generator, epochs=grid_classifier_epochs, validation_data=validation_generator)
 
     # Extract grid predictions
