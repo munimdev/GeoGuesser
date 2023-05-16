@@ -28,7 +28,7 @@ def haversine_distance(y_true, y_pred):
     lat1, lon1 = tf.split(y_true, 2, axis=-1)
     lat2, lon2 = tf.split(y_pred, 2, axis=-1)
 
-    lat1, lon1, lat2, lon2 = map(lambda x: x * math.pi / 180, [lat1, lon1, lat2, lon2])  # Convert to radians
+    lat1, lon1, lat2, lon2 = map(lambda x: tf.cast(x, tf.float32) * math.pi / 180, [lat1, lon1, lat2, lon2])  # Convert to radians
 
     dlat = lat2 - lat1
     dlon = lon2 - lon1

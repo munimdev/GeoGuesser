@@ -18,44 +18,27 @@ def create_grid_classifier(num_classes, input_shape, learning_rate=0.001):
     for layer in base_model.layers:
         layer.trainable = False
 
-    model.compile(optimizer=Adam(learning_rate=learning_rate), loss='categorical_crossentropy', metrics=['accuracy'])
+    # model.compile(optimizer=Adam(learning_rate=learning_rate), loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=Adam(learning_rate=learning_rate), loss='categorical_crossentropy', metrics=['categorical_accuracy'])
 
     return model
 
 def create_location_regressor(grid_size, learning_rate=0.001):
     model = Sequential([
-        Dense(1024, activation='relu', input_shape=(grid_size * grid_size,)),
+        Dense(1024, activation='relu', input_shape=(grid_size,)),
         Dropout(0.5),
         Dense(512, activation='relu'),
         Dropout(0.5),
         Dense(2, activation='linear')
     ])
 
-    # model.compile(optimizer=Adam(learning_rate=learning_rate), loss='mse', metrics=['mae'])
-    # model.compile(optimizer=Adam(learning_rate=0.001), loss=['categorical_crossentropy'], metrics=['accuracy'])
-    model.compile(optimizer=Adam(learning_rate=0.001), loss=['categorical_crossentropy'], metrics=['categorical_accuracy'])
-    # model.compile(optimizer=Adam(learning_rate=0.001), loss=['kullback_leibler_divergence'], metrics=['categorical_accuracy'])
+    model.compile(optimizer=Adam(learning_rate=learning_rate), loss='mse', metrics=['mae'])
 
     return model
 
-def train_geoguesser(train_generator, validation_generator, num_classes, input_shape, grid_classifier_epochs=20, location_regressor_epochs=20):
-    # num_classes = train_generator.num_classes
-
+def train_geoguesser(train_generator, validation_generator, num_classes, input_shape, grid_classifier_epochs=20):
     # Train the grid classifier
     grid_classifier = create_grid_classifier(num_classes, input_shape)
     grid_classifier.fit(train_generator, epochs=grid_classifier_epochs, validation_data=validation_generator)
 
-    # Extract grid predictions
-    train_grid_predictions = grid_classifier.predict(train_generator)
-    val_grid_predictions = grid_classifier.predict(validation_generator)
-
-    # Get true latitude and longitude labels for training and validation
-    train_lat_lng_labels = np.array([entry['one_hot_label'] for entry in train_generator.labels])
-    val_lat_lng_labels = np.array([entry['one_hot_label'] for entry in validation_generator.labels])
-
-    # Train the location regressor
-    location_regressor = create_location_regressor(grid_size=num_classes)
-    location_regressor.fit(train_grid_predictions, train_lat_lng_labels,
-                           epochs=location_regressor_epochs, validation_data=(val_grid_predictions, val_lat_lng_labels))
-
-    return grid_classifier, location_regressor
+    return grid_classifier
