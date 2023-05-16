@@ -1,62 +1,65 @@
 import os
+import json
 import numpy as np
 from scrapers.maps_scraper import scraper
-from utils.geocoding import haversine_distance, calculate_accuracy
-from preprocessor.data_splitter import split_data
 from preprocessor.image_preprocessor import preprocess_images
-from models.cnn_geoguesser import train_geoguesser_model, tune_geoguesser_model
-from tensorflow.keras.applications.resnet import preprocess_input
+from models.cnn_geoguesser import train_geoguesser, create_grid_classifier, create_location_regressor
 
-# Scrape images and metadata
-total_images = 300
+# Scrape images
+grid_size = 10
+images_per_grid = 3
+location_name = "London"
+INPUT_SHAPE = (640, 640, 3)
+OUTPUT_SHAPE = (224, 224, 3)
+EPOCHS_CLASSIFIER = 1
+EPOCHS_REGRESSION = 20
+bounding_box = None  # Example: {'lat_min': 33.5675, 'lat_max': 33.8242, 'lng_min': 72.8245, 'lng_max': 73.2819}
 keep_current_images = True
-grid_size = 30
-scraper(total_images, keep_current_images)
-# Split the data into train, validation, and test sets
+
+if bounding_box is not None:
+    lat_min, lat_max, lng_min, lng_max = bounding_box.values()
+    scraper(grid_size, images_per_grid, INPUT_SHAPE, keep_current_images, location_name=location_name, bounding_box=bounding_box)
+else:
+    scraper(grid_size, images_per_grid, INPUT_SHAPE, keep_current_images, location_name=location_name)
+
+# Preprocess images
 metadata_file = 'data/scraped_images/metadata.json'
-data_dir = 'data/scraped_images'
-train_dir = 'data/train'
-val_dir = 'data/val'
-test_dir = 'data/test'
-train_samples, val_samples, test_samples = split_data(metadata_file, data_dir, train_dir, val_dir, test_dir)
+train_generator, validation_generator, test_generator, train_lat_lng_labels, validation_lat_lng_labels, test_lat_lng_labels = preprocess_images(metadata_file, OUTPUT_SHAPE, grid_size)
 
-# Preprocess images and location data
-output_shape = (600, 300)
-train_images, train_locations = preprocess_images(train_dir, os.path.join(train_dir, 'metadata.json'), output_shape)
-val_images, val_locations = preprocess_images(val_dir, os.path.join(val_dir, 'metadata.json'), output_shape)
-test_images, test_locations = preprocess_images(test_dir, os.path.join(test_dir, 'metadata.json'), output_shape)
+# Train the models
+grid_classifier = train_geoguesser(train_generator, validation_generator, grid_size*grid_size, OUTPUT_SHAPE,
+                                   EPOCHS_CLASSIFIER)
 
-# Tune and train the model
-num_grid_cells = grid_size * grid_size
-tuned_model = tune_geoguesser_model(train_images, train_locations, val_images, val_locations, output_shape, num_grid_cells)
+# Prepare location regressor data
+train_grid_predictions = grid_classifier.predict(train_generator)
+validation_grid_predictions = grid_classifier.predict(validation_generator)
 
-# Evaluate the model on the test set
-test_loss, test_grid_accuracy, test_lat_lng_accuracy = tuned_model.evaluate(test_images, {'grid': test_locations[:, 2], 'lat_lng': test_locations[:, :2]})
-print(f'Test Loss: {test_loss}, Test Grid Accuracy: {test_grid_accuracy}, Test Lat-Lng Accuracy: {test_lat_lng_accuracy}')
+# Train the location regressor
+location_regressor = create_location_regressor(grid_size*grid_size, learning_rate=0.001)
+location_regressor.fit(train_grid_predictions, train_lat_lng_labels, epochs=EPOCHS_REGRESSION,
+                       validation_data=(validation_grid_predictions, validation_lat_lng_labels))
 
-# Get the model's predictions
-predicted_grid_labels, predicted_locations = tuned_model.predict(test_images)
+# Evaluate the models
+test_grid_predictions = grid_classifier.predict(test_generator)
 
-# Calculate distances between actual and predicted coordinates
-# print(test_locations, predicted_locations)
-distances=[]
-for index, _ in enumerate(test_locations):
-  print(f"Test: {test_locations[index]}, Prediction: {predicted_locations[index]}")
-  distances.append(haversine_distance(test_locations[index], predicted_locations[index]))
-  print(f"Distance: {distances[index]}")
+# Location regression evaluation
+test_location_predictions = location_regressor.predict(test_grid_predictions)
+test_location_loss, test_location_mae = location_regressor.evaluate(test_grid_predictions, test_lat_lng_labels)
 
-# Calculate mean and median distance errors
-mean_distance_error = np.mean(distances)
-median_distance_error = np.median(distances)
-print(f'Mean Distance Error: {mean_distance_error} km, Median Distance Error: {median_distance_error} km')
+# Grid classification evaluation
+test_grid_labels = np.argmax(test_lat_lng_labels, axis=1)
+test_grid_accuracy = np.mean(np.argmax(test_grid_predictions, axis=1) == test_grid_labels)
 
-# After training the model
-predictions = tuned_model.predict(test_images)
-test_accuracy = calculate_accuracy(predictions, test_locations)
-print(f'Test Accuracy: {test_accuracy}')
+# Calculate mean and median distance error
+from utils.geocoding import haversine_distance
+distance_errors = haversine_distance(test_lat_lng_labels, test_location_predictions)
+mean_distance_error = np.mean(distance_errors)
+median_distance_error = np.median(distance_errors)
 
-# Save the model
-model_save_path = 'saved_models'
-os.makedirs(model_save_path, exist_ok=True)
-model_file_name = f'geoguesser_model_{test_accuracy}'
-tuned_model.save(os.path.join(model_save_path, model_file_name))
+print(f'Test grid classification accuracy: {test_grid_accuracy}')
+print(f'Test location loss: {test_location_loss}, Test location MAE: {test_location_mae}')
+print(f'Mean distance error: {mean_distance_error}, Median distance error: {median_distance_error}')
+
+# Save models
+grid_classifier.save('models/grid_classifier.h5')
+location_regressor.save('models/location_regressor.h5')

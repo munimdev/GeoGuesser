@@ -28,7 +28,7 @@ def haversine_distance(y_true, y_pred):
     lat1, lon1 = tf.split(y_true, 2, axis=-1)
     lat2, lon2 = tf.split(y_pred, 2, axis=-1)
 
-    lat1, lon1, lat2, lon2 = map(lambda x: x * math.pi / 180, [lat1, lon1, lat2, lon2])  # Convert to radians
+    lat1, lon1, lat2, lon2 = map(lambda x: tf.cast(x, tf.float32) * math.pi / 180, [lat1, lon1, lat2, lon2])  # Convert to radians
 
     dlat = lat2 - lat1
     dlon = lon2 - lon1
@@ -39,7 +39,7 @@ def haversine_distance(y_true, y_pred):
     return 6371 * c
 
 def calculate_accuracy(predictions, true_locations, threshold_km=1):
-    num_samples = predictions.shape[0]
+    num_samples = len(true_locations)
     num_correct = 0
     for i in range(num_samples):
         y_true = np.array([true_locations[i]])
@@ -49,3 +49,31 @@ def calculate_accuracy(predictions, true_locations, threshold_km=1):
             num_correct += 1
     accuracy = num_correct / num_samples
     return accuracy
+
+def custom_grid_loss(y_true, y_pred, grid_size, alpha=0.1):
+    # Standard categorical cross-entropy loss
+    ce_loss = tf.keras.losses.CategoricalCrossentropy()(y_true, y_pred)
+    
+    # Calculate grid centers for true and predicted grids
+    y_true_centers = tf.argmax(y_true, axis=-1)
+    y_pred_centers = tf.argmax(y_pred, axis=-1)
+
+    y_true_row = tf.math.floordiv(y_true_centers, grid_size)
+    y_true_col = tf.math.mod(y_true_centers, grid_size)
+    y_pred_row = tf.math.floordiv(y_pred_centers, grid_size)
+    y_pred_col = tf.math.mod(y_pred_centers, grid_size)
+
+    # Calculate the distance between true and predicted grid centers as the city block distance
+    # row_diff = tf.square(tf.cast(y_true_row, tf.float32) - tf.cast(y_pred_row, tf.float32))
+    # col_diff = tf.square(tf.cast(y_true_col, tf.float32) - tf.cast(y_pred_col, tf.float32))
+    # distance = tf.sqrt(row_diff + col_diff)
+    distance = tf.math.abs(y_true_row - y_pred_row) + tf.math.abs(y_true_col - y_pred_col)
+
+    # Combine the categorical cross-entropy loss and the distance
+    alpha = tf.constant(alpha, dtype=tf.float32)
+    one = tf.constant(1, dtype=tf.float32)
+    distance = tf.cast(distance, tf.float32)  # Cast the distance tensor to float32
+    combined_loss = (one - alpha) * ce_loss + alpha * tf.reduce_mean(distance)
+
+
+    return combined_loss
