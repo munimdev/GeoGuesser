@@ -44,7 +44,9 @@ test_grid_predictions = grid_classifier.predict(test_generator)
 
 # Location regression evaluation
 test_location_predictions = location_regressor.predict(test_grid_predictions)
-test_location_loss, test_location_mae = location_regressor.evaluate(test_grid_predictions, test_lat_lng_labels)
+evaluation = location_regressor.evaluate(test_grid_predictions, test_lat_lng_labels)
+test_location_loss = evaluation[0]
+metrics = evaluation[1:]
 
 # Grid classification evaluation
 test_grid_labels = np.argmax(test_lat_lng_labels, axis=1)
@@ -57,7 +59,7 @@ mean_distance_error = np.mean(distance_errors)
 median_distance_error = np.median(distance_errors)
 
 print(f'Test grid classification accuracy: {test_grid_accuracy}')
-print(f'Test location loss: {test_location_loss}, Test location MAE: {test_location_mae}')
+print(f'Test location loss: {test_location_loss}, Metrics: {metrics}')
 print(f'Mean distance error: {mean_distance_error}, Median distance error: {median_distance_error}')
 
 # Save models

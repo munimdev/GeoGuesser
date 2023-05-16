@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import tensorflow_probability as tfp
 import math
 
 def lat_lng_to_grid_label(lat, lng, lat_min, lat_max, lng_min, lng_max, grid_size):
@@ -77,3 +78,9 @@ def custom_grid_loss(y_true, y_pred, grid_size, alpha=0.1):
 
 
     return combined_loss
+
+def mean_haversine_distance(y_true, y_pred):
+    return tf.reduce_mean(haversine_distance(y_true, y_pred))
+
+def median_haversine_distance(y_true, y_pred):
+    return tfp.stats.percentile(haversine_distance(y_true, y_pred), 50.0)
