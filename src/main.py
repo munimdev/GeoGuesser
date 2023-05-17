@@ -9,10 +9,10 @@ from models.cnn_geoguesser import train_geoguesser, create_grid_classifier, crea
 grid_size = 10
 images_per_grid = 3
 location_name = "London"
-INPUT_SHAPE = (640, 640, 3)
-OUTPUT_SHAPE = (224, 224, 3)
-EPOCHS_CLASSIFIER = 1
-EPOCHS_REGRESSION = 20
+INPUT_SHAPE = (640, 640, 3) # Specifies the shape for images to be scraped
+OUTPUT_SHAPE = (224, 224, 3) # Specifies the shape of the input to the CNN
+EPOCHS_CLASSIFIER = 20
+EPOCHS_REGRESSION = 50
 bounding_box = None  # Example: {'lat_min': 33.5675, 'lat_max': 33.8242, 'lng_min': 72.8245, 'lng_max': 73.2819}
 keep_current_images = True
 

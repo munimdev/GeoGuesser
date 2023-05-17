@@ -124,6 +124,18 @@ def scraper(grid_size, images_per_grid, image_shape, keep_current_images=True, b
     global num_classes
     global lat_min, lat_max, lng_min, lng_max
 
+    # Compute the maximum number of images
+    max_images = images_per_grid * grid_size * grid_size * 3
+
+    # If metadata file exists, load it and check if the count of images reached the limit
+    if os.path.isfile(metadata_file):
+        with open(metadata_file, 'r') as f:
+            metadata_json = json.load(f)
+            counter = metadata_json['counter']
+            if counter >= max_images:
+                print(f"Already scraped {counter} images. Maximum limit of {max_images} images reached.")
+                return
+
     if bounding_box is not None:
         lat_min, lat_max, lng_min, lng_max = bounding_box
     elif location_name is not None:
