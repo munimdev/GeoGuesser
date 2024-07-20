@@ -1,0 +1,89 @@
+[tool.poetry]
+name = "geoguesser"
+version = "0.1.0"
+description = ""
+authors = ["munimdev <munimzafar100@gmail.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+numpy = "^2.0.0"
+python-dotenv = "^1.0.1"
+pydantic = "^2.8.2"
+torch = "^2.3.1"
+torchvision = "^0.18.1"
+pillow = "^10.4.0"
+scikit-learn = "^1.5.1"
+loguru = "^0.7.2"
+pydantic-settings = "^2.3.4"
+
+[tool.poetry.group.dev.dependencies]
+mypy = "^1.8.0"
+ruff = "^0.5.1"
+types-requests = "^2.32.0.20240712"
+google-streetview = "^1.2.9"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+preview = true
+
+format.quote-style = "double"
+format.indent-style = "space"
+format.skip-magic-trailing-comma = false
+format.line-ending = "auto"
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+lint.fixable = ["ALL"]
+lint.unfixable = []
+lint.ignore = [
+    "COM812",
+    "ISC001",
+    "PLR091",
+]
+lint.select = [
+    "A",
+    "ASYNC",
+    "B",
+    "C4",
+    "C901",
+    "COM",
+    "DTZ",
+    "E",
+    "EXE",
+    "F",
+    "FBT",
+    "FLY",
+    "FURB",
+    "G",
+    "I",
+    "ICN",
+    "INP",
+    "ISC",
+    "LOG",
+    "N",
+    "PERF",
+    "PIE",
+    "PL",
+    "PLC",
+    "PYI",
+    "PT",
+    "PTH",
+    "Q",
+    "RUF",
+    "RSE",
+    "S",
+    "SIM",
+    "SLF",
+    "T10",
+    "T20",
+    "TID",
+    "UP",
+    "UP",
+    "W",
+]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
