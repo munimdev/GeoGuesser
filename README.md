@@ -34,7 +34,7 @@ To install the GeoGuesser project, follow these steps:
 1. **Clone the repository**:
 
    ```sh
-   git clone https://github.com/munimdev/geoguesser.git
+   git clone https://github.com/munimdev/git
    cd geoguesser
    ```
 
@@ -61,7 +61,7 @@ To install the GeoGuesser project, follow these steps:
 4. **Run the project**:
 
    ```sh
-    poetry run python main.py
+    poetry run python -m geoguesser.main
    ```
 
 ## Usage
@@ -71,7 +71,7 @@ To install the GeoGuesser project, follow these steps:
 To scrape images from Google Street View:
 
 ```python
-from geoguesser.scrapers.maps_scraper import scrape_images
+from scrapers.maps_scraper import scrape_images
 
 scrape_images(
     grid_size=10,
@@ -88,7 +88,7 @@ scrape_images(
 To preprocess images for model training:
 
 ```python
-from geoguesser.preprocessor.image_preprocessor import preprocess_images
+from preprocessor.image_preprocessor import preprocess_images
 from pathlib import Path
 
 metadata_file = Path("data/scraped_images/metadata.json")
@@ -104,7 +104,7 @@ train_loader, validation_loader, test_loader, train_lat_lng_labels, validation_l
 To train the grid classification and location regression models:
 
 ```python
-from geoguesser.models.cnn_geoguesser import train_geoguesser, create_location_regressor
+from models.cnn_geoguesser import train_geoguesser, create_location_regressor
 
 # Train grid classifier
 grid_classifier = train_geoguesser(
@@ -134,7 +134,7 @@ location_regressor.regressor.fit(
 To evaluate the grid classification and location regression models:
 
 ```python
-from geoguesser.evaluation.evaluator import evaluate_geoguesser
+from evaluation.evaluator import evaluate_geoguesser
 
 evaluate_geoguesser(
     grid_classifier,

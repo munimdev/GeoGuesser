@@ -19,7 +19,7 @@ IMAGES_PATH_FROM_ROOT = "data/scraped_images"
 
 # Create the directory for the scraped images
 script_dir = Path(__file__).parent.absolute()
-Path.mkdir(Path(script_dir) / IMAGES_PATH_FROM_SCRAPER)
+Path.mkdir(Path(script_dir) / IMAGES_PATH_FROM_SCRAPER, exist_ok=True)
 metadata_file = Path(script_dir) / f"{IMAGES_PATH_FROM_SCRAPER}/metadata.json"
 
 

@@ -25,7 +25,9 @@ class ImageDataset(Dataset):
         return image, label
 
 
-def preprocess_images(metadata_file: Path, output_shape: tuple, grid_size: int, test_size=0.15, validation_size=0.15):
+def preprocess_images(
+    metadata_file: Path, output_shape: tuple[int, int], grid_size: int, test_size=0.15, validation_size=0.15
+):
     with Path.open(metadata_file, "r") as f:
         metadata_json = json.load(f)
 

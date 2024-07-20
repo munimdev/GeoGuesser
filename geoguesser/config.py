@@ -1,9 +1,7 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="GEOGUESSER_", env_nested_delimiter="__")
-
     google_api_key: str = ""
 
 

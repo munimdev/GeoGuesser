@@ -12,7 +12,7 @@ grid_size = 10
 images_per_grid = 3
 location_name = "London"
 INPUT_SHAPE = (640, 640)  # Specifies the shape for images to be scraped
-OUTPUT_SHAPE = (224, 224, 3)  # Specifies the shape of the input to the CNN
+OUTPUT_SHAPE = (224, 224)  # Specifies the shape of the input to the CNN
 EPOCHS_CLASSIFIER = 20
 EPOCHS_REGRESSION = 50
 bounding_box: BoundingBox | None = None
@@ -40,7 +40,7 @@ metadata_file = Path("data/scraped_images/metadata.json")
 
 # Train the models
 grid_classifier = train_geoguesser(
-    train_generator, validation_generator, grid_size * grid_size, OUTPUT_SHAPE, EPOCHS_CLASSIFIER
+    train_generator, validation_generator, grid_size * grid_size, (*OUTPUT_SHAPE, 3), EPOCHS_CLASSIFIER
 )
 
 # Prepare location regressor data

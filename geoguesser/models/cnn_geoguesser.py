@@ -3,6 +3,7 @@ from collections.abc import Callable
 import torch
 from loguru import logger
 from pydantic import BaseModel
+from pydantic_settings import SettingsConfigDict
 from torch import nn, optim
 from torch.utils.data import DataLoader
 from torchvision import models  # type: ignore
@@ -57,6 +58,8 @@ class LocationRegressor(nn.Module):
 
 
 class GridClassifierReturn(BaseModel):
+    model_config = SettingsConfigDict(arbitrary_types_allowed=True)
+
     classifier: GridClassifier
     optimizer: optim.Optimizer
     criterion: nn.CrossEntropyLoss
@@ -72,6 +75,8 @@ def create_grid_classifier(
 
 
 class LocationRegressorReturn(BaseModel):
+    model_config = SettingsConfigDict(arbitrary_types_allowed=True)
+
     regressor: LocationRegressor
     optimizer: optim.Optimizer
     criterion: Callable
