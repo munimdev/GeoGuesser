@@ -1,0 +1,33 @@
+{
+  "files.exclude": {
+      "**/.git": true,
+      "**/node_modules": true,
+      "**/emulators_data": true,
+      "**/__pycache__": true,
+      "**/.mypy_cache": true,
+      "**/.pytest_cache": true,
+      "**/.ruff_cache": true,
+      "**/*.pyc": true,
+
+  },
+  "json.format.enable": true,
+  "editor.formatOnSave": true,
+  "[python]": {
+      "editor.defaultFormatter": "charliermarsh.ruff"
+  },
+  "editor.codeLens": true,
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true,
+  "python.envFile": "${workspaceFolder}/python/.env",
+  "python.analysis.typeCheckingMode": "basic",
+  "python.testing.pytestArgs": [
+      "tests"
+  ],
+  "python.analysis.autoImportCompletions": true,
+  "python.analysis.diagnosticSeverityOverrides": {
+      "reportPrivateImportUsage": "none"
+  },
+  "mypy-type-checker.args": [
+      "--config-file=${workspaceFolder}/python/pyproject.toml"
+  ]
+}

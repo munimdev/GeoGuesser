@@ -1,6 +1,9 @@
 import numpy as np
 
-def grid_predictions_to_coordinates(grid_predictions: np.ndarray, min_lat: float, max_lat: float, min_lng: float, max_lng: float, grid_size: int) -> np.ndarray:
+
+def grid_predictions_to_coordinates(
+    grid_predictions: np.ndarray, min_lat: float, max_lat: float, min_lng: float, max_lng: float, grid_size: int
+) -> np.ndarray:
     lat_step = (max_lat - min_lat) / grid_size
     lng_step = (max_lng - min_lng) / grid_size
 
